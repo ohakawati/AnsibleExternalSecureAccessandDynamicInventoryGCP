@@ -1,0 +1,44 @@
+---
+- name: Create Compute Engine instances
+  hosts: localhost
+  gather_facts: no
+  vars:
+      gcp_project: project name
+      gcp_cred_kind: serviceaccount
+      gcp_cred_file: "sa_ansible.json"
+      zone: "us-central1-a"
+      region: "us-central1"
+      machine_type: "e2-micro"
+      image: "projects/projectname/global/images/debian" 
+  tasks:
+   - name: Create private IP address to the VM instance
+     gcp_compute_address:
+       name: "{{ zone }}-ip"
+       region: "{{ region }}"
+       project: "{{ gcp_project }}"
+       service_account_file: "{{ gcp_cred_file }}"
+       auth_kind: "{{ gcp_cred_kind }}"
+     register: gce_ip
+   - name: Bring up the instance in the zone
+     gcp_compute_instance:
+       name: "{{ zone }}"
+       machine_type: "{{ machine_type }}"
+       disks:
+         - auto_delete: true
+           boot: true
+           initialize_params:
+             source_image: "{{ image }}"
+       network_interfaces:
+         - access_configs:
+             - name: External NAT  # public IP
+               nat_ip: "{{ gce_ip }}"
+               type: ONE_TO_ONE_NAT
+       tags:
+         items: 
+           - http-server
+           - https-server
+       zone: "{{ zone }}"
+       project: "{{ gcp_project }}"
+       service_account_file: "{{ gcp_cred_file }}"
+       auth_kind: "{{ gcp_cred_kind }}"
+     register: gce 
